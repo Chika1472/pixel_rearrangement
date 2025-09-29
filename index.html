@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Pixel Morph</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <main class="app-container">
+      <header>
+        <h1>Pixel Morph</h1>
+        <p class="tagline">Transform your image into a new iconic silhouette.</p>
+      </header>
+
+      <section id="controls" aria-label="Controls">
+        <div class="control-group">
+          <label for="targetImageUpload" class="control-label">Select Target Image</label>
+          <input type="file" id="targetImageUpload" accept="image/*" />
+        </div>
+        <div class="control-group">
+          <label for="sourceImageUpload" class="control-label">Select Source Image</label>
+          <input type="file" id="sourceImageUpload" accept="image/*" />
+        </div>
+        <div class="buttons">
+          <button id="transformButton" disabled>Transform!</button>
+          <button id="resetButton" class="secondary">Reset</button>
+          <button id="drawingModeButton" class="secondary" aria-pressed="false" disabled>
+            Drawing Mode
+          </button>
+        </div>
+      </section>
+
+      <canvas id="displayCanvas" width="512" height="512" role="img" aria-label="Pixel morph display"></canvas>
+
+      <p class="hint">
+        Upload a 512×512 target image to morph toward, then choose a source image or switch to
+        Drawing Mode to paint pixels that will flow into the target silhouette.
+      </p>
+    </main>
+
+    <script src="script.js"></script>
+  </body>
+</html>
