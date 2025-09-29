@@ -1,0 +1,160 @@
+:root {
+  color-scheme: light dark;
+  --background: #10151d;
+  --surface: rgba(255, 255, 255, 0.06);
+  --surface-light: rgba(255, 255, 255, 0.12);
+  --primary: #4c8bf5;
+  --accent: #f5a623;
+  --text: #f1f5f9;
+  --text-muted: #a9b4c2;
+  font-family: "Inter", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at 20% 20%, rgba(76, 139, 245, 0.25), transparent 55%),
+    radial-gradient(circle at 80% 10%, rgba(245, 166, 35, 0.25), transparent 60%),
+    var(--background);
+  color: var(--text);
+  padding: 2rem;
+}
+
+.app-container {
+  width: min(90vw, 720px);
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 2.5rem;
+  backdrop-filter: blur(18px);
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.25);
+}
+
+header h1 {
+  margin: 0;
+  font-size: clamp(2rem, 5vw, 3rem);
+  letter-spacing: 0.04em;
+}
+
+.tagline {
+  margin: 0.25rem 0 0;
+  color: var(--text-muted);
+  font-size: 1rem;
+}
+
+#controls {
+  display: grid;
+  gap: 1rem;
+  background: var(--surface);
+  padding: 1.5rem;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.control-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.control-label {
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+input[type="file"] {
+  padding: 0.75rem 1rem;
+  border: 1px dashed rgba(255, 255, 255, 0.25);
+  border-radius: 8px;
+  background: rgba(10, 15, 24, 0.6);
+  color: var(--text-muted);
+}
+
+.buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+button {
+  appearance: none;
+  border: none;
+  border-radius: 999px;
+  padding: 0.75rem 1.75rem;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+#transformButton {
+  background: linear-gradient(135deg, var(--primary), #89b6ff);
+  color: #0b0f1a;
+  box-shadow: 0 10px 24px rgba(76, 139, 245, 0.4);
+}
+
+button.secondary {
+  background: var(--surface-light);
+  color: var(--text);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.3);
+}
+
+button:not(:disabled):hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.35);
+}
+
+button[aria-pressed="true"] {
+  background: linear-gradient(135deg, var(--accent), #ffd79a);
+  color: #0f121b;
+}
+
+#displayCanvas {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1 / 1;
+  border-radius: 12px;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  background: rgba(5, 8, 12, 0.85);
+}
+
+.hint {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+@media (max-width: 640px) {
+  body {
+    padding: 1.5rem;
+  }
+
+  .app-container {
+    padding: 1.75rem;
+  }
+
+  #controls {
+    padding: 1.25rem;
+  }
+
+  button {
+    width: 100%;
+    justify-content: center;
+  }
+}
