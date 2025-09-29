@@ -3,6 +3,7 @@ const state = {
   targetBitmap: null,
   sourceName: "",
   targetName: "",
+=======
   resolution: 96,
   scale: 6,
   duration: 6,
@@ -104,6 +105,23 @@ function setupInputs() {
 
   addDropZone(sourceInput, handleSourceFile);
   addDropZone(targetInput, handleTargetFile);
+=======
+  sourceInput.addEventListener("change", async (event) => {
+    if (!event.target.files?.length) return;
+    const file = event.target.files[0];
+    state.sourceBitmap = await decodeImageFromFile(file);
+    await processIfReady();
+  });
+
+  targetInput.addEventListener("change", async (event) => {
+    if (!event.target.files?.length) return;
+    const file = event.target.files[0];
+    state.targetBitmap = await decodeImageFromFile(file);
+    await processIfReady();
+  });
+
+  addDropZone(sourceInput, (file) => sourceInput.files = fileListFromFile(file));
+  addDropZone(targetInput, (file) => targetInput.files = fileListFromFile(file));
 
   resolutionSlider.addEventListener("input", () => {
     state.resolution = Number(resolutionSlider.value);
@@ -174,6 +192,9 @@ function addDropZone(input, onDropFile) {
     if (file) {
       input.value = "";
       onDropFile(file);
+=======
+      onDropFile(file);
+      input.dispatchEvent(new Event("change", { bubbles: true }));
     }
   });
 }
@@ -205,6 +226,14 @@ async function decodeImageFromURL(url) {
     }
   }
   return img;
+=======
+  return createImageBitmap(img);
+}
+
+function fileListFromFile(file) {
+  const dataTransfer = new DataTransfer();
+  dataTransfer.items.add(file);
+  return dataTransfer.files;
 }
 
 async function processIfReady() {
@@ -249,6 +278,7 @@ function reportError(error) {
   statusEl.classList.remove("hidden");
 }
 
+=======
 async function sampleBitmap(bitmap, size) {
   const canvas = document.createElement("canvas");
   canvas.width = size;
@@ -258,6 +288,10 @@ async function sampleBitmap(bitmap, size) {
   const scale = Math.max(size / bmpWidth, size / bmpHeight);
   const width = Math.round(bmpWidth * scale);
   const height = Math.round(bmpHeight * scale);
+=======
+  const scale = Math.max(size / bitmap.width, size / bitmap.height);
+  const width = Math.round(bitmap.width * scale);
+  const height = Math.round(bitmap.height * scale);
   const offsetX = (size - width) / 2;
   const offsetY = (size - height) / 2;
   ctx.drawImage(bitmap, offsetX, offsetY, width, height);
@@ -281,6 +315,7 @@ function getBitmapDimensions(bitmap) {
   return { width: 1, height: 1 };
 }
 
+=======
 function computePixelMapping(sourceData, targetData, width, height) {
   const total = width * height;
   const buckets = createBuckets();
@@ -531,5 +566,6 @@ async function loadSampleImages() {
   state.targetName = "Sample shapes";
   updateFileLabel(sourceInput, state.sourceName);
   updateFileLabel(targetInput, state.targetName);
+=======
   await processIfReady();
 }
