@@ -1,6 +1,12 @@
 const CANVAS_SIZE = 512;
-const EASING = 0.08;
-const STOP_THRESHOLD = 0.35;
+const SPRING_STIFFNESS = 0.14;
+const VISCOSITY = 0.18;
+const FLOW_NOISE = 0.25;
+const COLOR_EASING = 0.08;
+const STOP_DISTANCE = 0.4;
+const STOP_VELOCITY = 0.06;
+const MIN_PARTICLE_RADIUS = 0.7;
+const MAX_PARTICLE_RADIUS = 2.6;
 
 const canvas = document.getElementById("displayCanvas");
 const ctx = canvas.getContext("2d");
@@ -37,7 +43,12 @@ function getBrightness(r, g, b) {
  * @param {HTMLImageElement} image
  * @param {number} [width=CANVAS_SIZE]
  * @param {number} [height=CANVAS_SIZE]
- * @returns {Array<{x:number, y:number, color:string, brightness:number}>>}
+ * @returns {Array<{
+ *   x:number,
+ *   y:number,
+ *   color:{r:number, g:number, b:number, a:number},
+ *   brightness:number
+ * }>}
  */
 function getPixelDataFromImage(image, width = CANVAS_SIZE, height = CANVAS_SIZE) {
   const offscreenCanvas = document.createElement("canvas");
@@ -65,7 +76,7 @@ function getPixelDataFromImage(image, width = CANVAS_SIZE, height = CANVAS_SIZE)
       pixels.push({
         x,
         y,
-        color: `rgba(${r}, ${g}, ${b}, ${alpha.toFixed(3)})`,
+        color: { r, g, b, a: alpha },
         brightness: getBrightness(r, g, b),
       });
     }
@@ -77,6 +88,31 @@ function getPixelDataFromImage(image, width = CANVAS_SIZE, height = CANVAS_SIZE)
 /**
  * Prepare the particles array by mapping sorted source pixels to target pixels.
  */
+function clamp(value, min, max) {
+  return Math.min(Math.max(value, min), max);
+}
+
+function cloneColor(color) {
+  return { r: color.r, g: color.g, b: color.b, a: color.a };
+}
+
+function colorToString({ r, g, b, a }) {
+  const clampedR = Math.round(clamp(r, 0, 255));
+  const clampedG = Math.round(clamp(g, 0, 255));
+  const clampedB = Math.round(clamp(b, 0, 255));
+  const clampedA = clamp(a, 0, 1);
+  return `rgba(${clampedR}, ${clampedG}, ${clampedB}, ${clampedA.toFixed(3)})`;
+}
+
+function interpolateColors(startColor, endColor, t) {
+  return {
+    r: startColor.r + (endColor.r - startColor.r) * t,
+    g: startColor.g + (endColor.g - startColor.g) * t,
+    b: startColor.b + (endColor.b - startColor.b) * t,
+    a: startColor.a + (endColor.a - startColor.a) * t,
+  };
+}
+
 function createParticleMapping() {
   if (!sourcePixels.length || !targetPixelsSorted.length) return;
 
@@ -88,12 +124,19 @@ function createParticleMapping() {
   for (let i = 0; i < count; i += 1) {
     const src = sortedSource[i];
     const tgt = targetPixelsSorted[i];
+    const totalDistance = Math.hypot(tgt.x - src.x, tgt.y - src.y);
+
     particles[i] = {
       currentX: src.x,
       currentY: src.y,
       targetX: tgt.x,
       targetY: tgt.y,
-      color: src.color,
+      velocityX: 0,
+      velocityY: 0,
+      totalDistance,
+      colorProgress: 0,
+      sourceColor: cloneColor(src.color),
+      targetColor: cloneColor(tgt.color),
     };
   }
 }
@@ -125,15 +168,57 @@ function animate() {
     const dx = particle.targetX - particle.currentX;
     const dy = particle.targetY - particle.currentY;
 
-    particle.currentX += dx * EASING;
-    particle.currentY += dy * EASING;
+    particle.velocityX += dx * SPRING_STIFFNESS;
+    particle.velocityY += dy * SPRING_STIFFNESS;
 
-    if (Math.abs(dx) < STOP_THRESHOLD && Math.abs(dy) < STOP_THRESHOLD) {
-      particlesAtRest += 1;
+    const noiseStrength = (1 - particle.colorProgress) * FLOW_NOISE;
+    if (noiseStrength > 0) {
+      particle.velocityX += (Math.random() - 0.5) * noiseStrength;
+      particle.velocityY += (Math.random() - 0.5) * noiseStrength;
     }
 
-    ctx.fillStyle = particle.color;
-    ctx.fillRect(particle.currentX, particle.currentY, 1, 1);
+    particle.velocityX *= 1 - VISCOSITY;
+    particle.velocityY *= 1 - VISCOSITY;
+
+    particle.currentX += particle.velocityX;
+    particle.currentY += particle.velocityY;
+
+    const remainingX = particle.targetX - particle.currentX;
+    const remainingY = particle.targetY - particle.currentY;
+    const remainingDistance = Math.hypot(remainingX, remainingY);
+    const speed = Math.hypot(particle.velocityX, particle.velocityY);
+    const targetProgress =
+      particle.totalDistance === 0
+        ? 1
+        : 1 - Math.min(1, remainingDistance / particle.totalDistance);
+    particle.colorProgress += (targetProgress - particle.colorProgress) * COLOR_EASING;
+
+    const blendedColor = interpolateColors(
+      particle.sourceColor,
+      particle.targetColor,
+      particle.colorProgress
+    );
+    const radius =
+      MIN_PARTICLE_RADIUS +
+      (1 - particle.colorProgress) * (MAX_PARTICLE_RADIUS - MIN_PARTICLE_RADIUS);
+    const alpha = 0.45 + particle.colorProgress * 0.55;
+
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.filter = `blur(${(1 - particle.colorProgress) * 1.4}px)`;
+    ctx.fillStyle = colorToString(blendedColor);
+    ctx.beginPath();
+    ctx.arc(particle.currentX, particle.currentY, radius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    if (
+      remainingDistance < STOP_DISTANCE &&
+      speed < STOP_VELOCITY &&
+      particle.colorProgress > 0.98
+    ) {
+      particlesAtRest += 1;
+    }
   }
 
   if (particlesAtRest === particles.length) {
@@ -241,7 +326,12 @@ function handleDraw(clientX, clientY) {
         currentY: py,
         targetX: target.x,
         targetY: target.y,
-        color: "rgba(255, 255, 255, 1)",
+        velocityX: 0,
+        velocityY: 0,
+        totalDistance: Math.hypot(target.x - px, target.y - py),
+        colorProgress: 0,
+        sourceColor: { r: 255, g: 255, b: 255, a: 1 },
+        targetColor: cloneColor(target.color),
       });
     }
   }
