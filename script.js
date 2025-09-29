@@ -88,12 +88,16 @@ function createParticleMapping() {
   for (let i = 0; i < count; i += 1) {
     const src = sortedSource[i];
     const tgt = targetPixelsSorted[i];
+    const sourceX = src.originalX ?? src.x;
+    const sourceY = src.originalY ?? src.y;
     particles[i] = {
-      currentX: src.x,
-      currentY: src.y,
+      currentX: sourceX,
+      currentY: sourceY,
       targetX: tgt.x,
       targetY: tgt.y,
       color: src.color,
+      sourceX,
+      sourceY,
     };
   }
 }
@@ -296,7 +300,11 @@ fileInput.addEventListener("change", (event) => {
     const image = new Image();
     image.onload = () => {
       stopAnimation();
-      sourcePixels = getPixelDataFromImage(image, CANVAS_SIZE, CANVAS_SIZE);
+      sourcePixels = getPixelDataFromImage(image, CANVAS_SIZE, CANVAS_SIZE).map((pixel) => ({
+        ...pixel,
+        originalX: pixel.x,
+        originalY: pixel.y,
+      }));
       displaySourceImage(image);
       drawingMode = false;
       drawingModeButton.setAttribute("aria-pressed", "false");
