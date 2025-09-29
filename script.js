@@ -1,6 +1,9 @@
 const state = {
   sourceBitmap: null,
   targetBitmap: null,
+  sourceName: "",
+  targetName: "",
+=======
   resolution: 96,
   scale: 6,
   duration: 6,
@@ -64,6 +67,45 @@ window.addEventListener("load", () => {
 });
 
 function setupInputs() {
+  const handleSourceFile = async (file) => {
+    if (!file) return;
+    try {
+      state.sourceBitmap = await decodeImageFromFile(file);
+      state.sourceName = file.name ?? "";
+      updateFileLabel(sourceInput, state.sourceName);
+      await processIfReady();
+    } catch (error) {
+      reportError(error);
+    }
+  };
+
+  const handleTargetFile = async (file) => {
+    if (!file) return;
+    try {
+      state.targetBitmap = await decodeImageFromFile(file);
+      state.targetName = file.name ?? "";
+      updateFileLabel(targetInput, state.targetName);
+      await processIfReady();
+    } catch (error) {
+      reportError(error);
+    }
+  };
+
+  sourceInput.addEventListener("change", (event) => {
+    const file = event.target.files?.[0];
+    handleSourceFile(file);
+    event.target.value = "";
+  });
+
+  targetInput.addEventListener("change", (event) => {
+    const file = event.target.files?.[0];
+    handleTargetFile(file);
+    event.target.value = "";
+  });
+
+  addDropZone(sourceInput, handleSourceFile);
+  addDropZone(targetInput, handleTargetFile);
+=======
   sourceInput.addEventListener("change", async (event) => {
     if (!event.target.files?.length) return;
     const file = event.target.files[0];
@@ -148,6 +190,9 @@ function addDropZone(input, onDropFile) {
     label.classList.remove("dragging");
     const file = event.dataTransfer?.files?.[0];
     if (file) {
+      input.value = "";
+      onDropFile(file);
+=======
       onDropFile(file);
       input.dispatchEvent(new Event("change", { bubbles: true }));
     }
@@ -173,6 +218,15 @@ async function decodeImageFromURL(url) {
   img.crossOrigin = "anonymous";
   img.src = url;
   await img.decode();
+  if ("createImageBitmap" in window) {
+    try {
+      return await createImageBitmap(img);
+    } catch (error) {
+      console.warn("createImageBitmap failed, falling back to Image", error);
+    }
+  }
+  return img;
+=======
   return createImageBitmap(img);
 }
 
@@ -208,11 +262,33 @@ async function processIfReady() {
   drawFrame(0);
 }
 
+function updateFileLabel(input, name) {
+  const label = input.closest("label");
+  if (!label) return;
+  const nameEl = label.querySelector(".selected-name");
+  if (nameEl) {
+    nameEl.textContent = name ?? "";
+  }
+}
+
+function reportError(error) {
+  console.error(error);
+  statusEl.textContent =
+    "Something went wrong while loading the image. Please try another file.";
+  statusEl.classList.remove("hidden");
+}
+
+=======
 async function sampleBitmap(bitmap, size) {
   const canvas = document.createElement("canvas");
   canvas.width = size;
   canvas.height = size;
   const ctx = canvas.getContext("2d");
+  const { width: bmpWidth, height: bmpHeight } = getBitmapDimensions(bitmap);
+  const scale = Math.max(size / bmpWidth, size / bmpHeight);
+  const width = Math.round(bmpWidth * scale);
+  const height = Math.round(bmpHeight * scale);
+=======
   const scale = Math.max(size / bitmap.width, size / bitmap.height);
   const width = Math.round(bitmap.width * scale);
   const height = Math.round(bitmap.height * scale);
@@ -223,6 +299,23 @@ async function sampleBitmap(bitmap, size) {
   return imageData;
 }
 
+function getBitmapDimensions(bitmap) {
+  if (typeof bitmap.width === "number" && typeof bitmap.height === "number") {
+    if (bitmap.width > 0 && bitmap.height > 0) {
+      return { width: bitmap.width, height: bitmap.height };
+    }
+  }
+  if (
+    "naturalWidth" in bitmap &&
+    typeof bitmap.naturalWidth === "number" &&
+    bitmap.naturalWidth > 0
+  ) {
+    return { width: bitmap.naturalWidth, height: bitmap.naturalHeight };
+  }
+  return { width: 1, height: 1 };
+}
+
+=======
 function computePixelMapping(sourceData, targetData, width, height) {
   const total = width * height;
   const buckets = createBuckets();
@@ -469,5 +562,10 @@ function startAnimationLoop() {
 async function loadSampleImages() {
   state.sourceBitmap = await decodeImageFromURL(SAMPLE_SOURCE);
   state.targetBitmap = await decodeImageFromURL(SAMPLE_TARGET);
+  state.sourceName = "Sample gradient";
+  state.targetName = "Sample shapes";
+  updateFileLabel(sourceInput, state.sourceName);
+  updateFileLabel(targetInput, state.targetName);
+=======
   await processIfReady();
 }
