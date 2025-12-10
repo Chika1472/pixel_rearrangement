@@ -1,6 +1,13 @@
 const CANVAS_SIZE = 512;
-const EASING = 0.08;
-const STOP_THRESHOLD = 0.35;
+const TIME_STEP = 0.016;
+const ATTRACTION_STRENGTH = 0.45;
+const PRESSURE_RADIUS = 6;
+const PRESSURE_STIFFNESS = 0.08;
+const VISCOSITY = 0.25;
+const DRAG = 0.025;
+const MAX_SPEED = 8;
+const STOP_DISTANCE = 0.65;
+const STOP_SPEED = 0.045;
 
 const canvas = document.getElementById("displayCanvas");
 const ctx = canvas.getContext("2d");
@@ -94,6 +101,8 @@ function createParticleMapping() {
       targetX: tgt.x,
       targetY: tgt.y,
       color: src.color,
+      velocityX: 0,
+      velocityY: 0,
     };
   }
 }
@@ -118,17 +127,96 @@ function animate() {
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+  const cellSize = PRESSURE_RADIUS;
+  const invCellSize = 1 / cellSize;
+  const grid = new Map();
+
+  for (let i = 0; i < particles.length; i += 1) {
+    const particle = particles[i];
+    const cellX = Math.floor(particle.currentX * invCellSize);
+    const cellY = Math.floor(particle.currentY * invCellSize);
+    const key = `${cellX},${cellY}`;
+
+    if (!grid.has(key)) {
+      grid.set(key, []);
+    }
+
+    grid.get(key).push(i);
+  }
+
   let particlesAtRest = 0;
 
   for (let i = 0; i < particles.length; i += 1) {
     const particle = particles[i];
-    const dx = particle.targetX - particle.currentX;
-    const dy = particle.targetY - particle.currentY;
 
-    particle.currentX += dx * EASING;
-    particle.currentY += dy * EASING;
+    const targetDx = particle.targetX - particle.currentX;
+    const targetDy = particle.targetY - particle.currentY;
 
-    if (Math.abs(dx) < STOP_THRESHOLD && Math.abs(dy) < STOP_THRESHOLD) {
+    let accelerationX = targetDx * ATTRACTION_STRENGTH;
+    let accelerationY = targetDy * ATTRACTION_STRENGTH;
+
+    const cellX = Math.floor(particle.currentX * invCellSize);
+    const cellY = Math.floor(particle.currentY * invCellSize);
+
+    for (let gx = cellX - 1; gx <= cellX + 1; gx += 1) {
+      for (let gy = cellY - 1; gy <= cellY + 1; gy += 1) {
+        const key = `${gx},${gy}`;
+        const indices = grid.get(key);
+        if (!indices) continue;
+
+        for (let j = 0; j < indices.length; j += 1) {
+          const neighborIndex = indices[j];
+          if (neighborIndex === i) continue;
+
+          const neighbor = particles[neighborIndex];
+          const dx = particle.currentX - neighbor.currentX;
+          const dy = particle.currentY - neighbor.currentY;
+          const distanceSq = dx * dx + dy * dy;
+
+          if (distanceSq === 0 || distanceSq > PRESSURE_RADIUS * PRESSURE_RADIUS) continue;
+
+          const distance = Math.sqrt(distanceSq);
+          const overlap = PRESSURE_RADIUS - distance;
+          const nx = dx / distance;
+          const ny = dy / distance;
+
+          const repulsion = overlap * PRESSURE_STIFFNESS;
+          accelerationX += nx * repulsion;
+          accelerationY += ny * repulsion;
+
+          const relativeVelocity =
+            (particle.velocityX - neighbor.velocityX) * nx +
+            (particle.velocityY - neighbor.velocityY) * ny;
+          const viscosityImpulse = relativeVelocity * VISCOSITY;
+          accelerationX -= viscosityImpulse * nx;
+          accelerationY -= viscosityImpulse * ny;
+        }
+      }
+    }
+
+    particle.velocityX += accelerationX * TIME_STEP;
+    particle.velocityY += accelerationY * TIME_STEP;
+
+    particle.velocityX *= 1 - DRAG;
+    particle.velocityY *= 1 - DRAG;
+
+    const speed = Math.hypot(particle.velocityX, particle.velocityY);
+    if (speed > MAX_SPEED) {
+      const scale = MAX_SPEED / speed;
+      particle.velocityX *= scale;
+      particle.velocityY *= scale;
+    }
+
+    particle.currentX += particle.velocityX * TIME_STEP;
+    particle.currentY += particle.velocityY * TIME_STEP;
+
+    particle.currentX = Math.min(Math.max(particle.currentX, 0), canvas.width - 1);
+    particle.currentY = Math.min(Math.max(particle.currentY, 0), canvas.height - 1);
+
+    if (
+      Math.hypot(targetDx, targetDy) < STOP_DISTANCE &&
+      Math.hypot(particle.velocityX, particle.velocityY) < STOP_SPEED
+    ) {
       particlesAtRest += 1;
     }
 
@@ -242,6 +330,8 @@ function handleDraw(clientX, clientY) {
         targetX: target.x,
         targetY: target.y,
         color: "rgba(255, 255, 255, 1)",
+        velocityX: 0,
+        velocityY: 0,
       });
     }
   }
