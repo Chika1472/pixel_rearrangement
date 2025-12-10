@@ -1,6 +1,10 @@
 const CANVAS_SIZE = 512;
-const EASING = 0.08;
-const STOP_THRESHOLD = 0.35;
+const ATTRACTION = 0.03;
+const FLOW_STRENGTH = 0.65;
+const FLOW_NOISE_SCALE = 0.03;
+const FLOW_TIME_SCALE = 0.0015;
+const VELOCITY_DAMPING = 0.9;
+const STOP_THRESHOLD = 0.25;
 
 const canvas = document.getElementById("displayCanvas");
 const ctx = canvas.getContext("2d");
@@ -16,6 +20,7 @@ let targetPixelsSorted = [];
 let particles = [];
 let animationFrameId = null;
 let isAnimating = false;
+let lastTimestamp = null;
 let drawingMode = false;
 let targetAssignmentIndex = 0;
 let isMouseDown = false;
@@ -94,6 +99,8 @@ function createParticleMapping() {
       targetX: tgt.x,
       targetY: tgt.y,
       color: src.color,
+      velocityX: 0,
+      velocityY: 0,
     };
   }
 }
@@ -110,11 +117,18 @@ function displaySourceImage(image) {
 /**
  * Animation loop.
  */
-function animate() {
+function animate(timestamp) {
   if (!particles.length) {
     isAnimating = false;
     return;
   }
+
+  if (lastTimestamp === null) {
+    lastTimestamp = timestamp;
+  }
+
+  const delta = Math.min((timestamp - lastTimestamp) / 16.666, 2);
+  lastTimestamp = timestamp;
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -125,10 +139,26 @@ function animate() {
     const dx = particle.targetX - particle.currentX;
     const dy = particle.targetY - particle.currentY;
 
-    particle.currentX += dx * EASING;
-    particle.currentY += dy * EASING;
+    const attractionX = dx * ATTRACTION;
+    const attractionY = dy * ATTRACTION;
 
-    if (Math.abs(dx) < STOP_THRESHOLD && Math.abs(dy) < STOP_THRESHOLD) {
+    const flowX =
+      Math.sin(particle.currentY * FLOW_NOISE_SCALE + timestamp * FLOW_TIME_SCALE) * FLOW_STRENGTH;
+    const flowY =
+      Math.sin(particle.currentX * FLOW_NOISE_SCALE - timestamp * FLOW_TIME_SCALE) * FLOW_STRENGTH;
+
+    particle.velocityX = (particle.velocityX + (attractionX + flowX) * delta) * VELOCITY_DAMPING;
+    particle.velocityY = (particle.velocityY + (attractionY + flowY) * delta) * VELOCITY_DAMPING;
+
+    particle.currentX += particle.velocityX * delta;
+    particle.currentY += particle.velocityY * delta;
+
+    if (
+      Math.abs(dx) < STOP_THRESHOLD &&
+      Math.abs(dy) < STOP_THRESHOLD &&
+      Math.abs(particle.velocityX) < 0.05 &&
+      Math.abs(particle.velocityY) < 0.05
+    ) {
       particlesAtRest += 1;
     }
 
@@ -164,6 +194,7 @@ function stopAnimation() {
     animationFrameId = null;
   }
   isAnimating = false;
+  lastTimestamp = null;
 }
 
 /**
@@ -242,6 +273,8 @@ function handleDraw(clientX, clientY) {
         targetX: target.x,
         targetY: target.y,
         color: "rgba(255, 255, 255, 1)",
+        velocityX: 0,
+        velocityY: 0,
       });
     }
   }
